@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
-	//"bufio"
-	//"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -24,9 +22,11 @@ func readFile(path string) ([]byte, error) {
 }
 
 func read(file *os.File) ([]byte, error) {
-	br := bufio.NewReader(file)
-	br.ReadLine()
-	return _, nil
+	br, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	return br, nil
 }
 
 func main() {
