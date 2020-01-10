@@ -1,5 +1,6 @@
+//基于百度云的图片识别接口，将车牌图片中相关的车牌号识别输出
 package main
-//todo 增加测试
+
 import (
 	"encoding/base64"
 	"encoding/json"
@@ -12,7 +13,7 @@ import (
 	"path/filepath"
 	"time"
 )
-//识别图片中的车牌号
+
 func main() {
 	start := time.Now()
 	handler := PlateHandler{}
@@ -20,8 +21,13 @@ func main() {
 
 	appKey := "------"
 	secret := "------"
-	accessToken := handler.GetAccessToken(appKey, secret)
-		//log.Println("获取到的accessToken:",accessToken)
+	accessToken, err := handler.GetAccessToken(appKey, secret)
+
+	if err != nil {
+		log.Println("error:", err)
+		return
+	}
+	//log.Println("获取到的accessToken:",accessToken)
 	dir, _ := os.Getwd()
 	if len(os.Args[1:]) < 1 {
 		//加载固定路径图片
@@ -30,12 +36,7 @@ func main() {
 	} else {
 		for _, picPath := range os.Args[1:] {
 			picPath := filepath.Join(dir, picPath)
-			//plate,err := handler.GetPlate(picPath, accessToken)
 			go handler.GetPlate(picPath, accessToken, ch)
-			//if err!=nil{
-			//	log.Fatal("获取车牌失败",err)
-			//}
-			//log.Println("获取到的车牌:",plate)
 		}
 	}
 	for range os.Args[1:] {
@@ -58,27 +59,26 @@ type Data struct {
 type PlateHandler struct {
 }
 
-func (handler *PlateHandler) GetAccessToken(appKey string, appSecret string) (accessToken string) {
+func (handler *PlateHandler) GetAccessToken(appKey string, appSecret string) (accessToken string, err error) {
 	//todo 添加accessToken缓存
+	//accessToken是否存在，如果存在则进行expire_in判断
+	//如果不存在，则请求新的accessToken
 	url := "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id="+appKey+"&client_secret="+appSecret
-
 	response, err := http.Get(url)
 	if err != nil {
-		log.Fatal(err)
-		return ""
+		return "-1", err
 	}
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
-		return ""
+		return "-2", err
 	}
 	info := accessTokenInfo{}
 	json.Unmarshal(data, &info)
 	log.Print("请求accessToken返回的数据:", string(data))
-	return info.AccessToken
+	return info.AccessToken, nil
 }
 
-func (handler *PlateHandler) GetPlate(pictureUrl string,accessToken string, ch chan<- string) {
+func (handler *PlateHandler) GetPlate(pictureUrl string, accessToken string, ch chan<- string) {
 	data, error := ioutil.ReadFile(pictureUrl)
 	if error != nil {
 		ch <- fmt.Sprint(error)
